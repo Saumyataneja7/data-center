@@ -26,7 +26,7 @@
     </dict>
 
     <key>RunAtLoad</key>
-    <false/>
+    <true/>
 
     <key>StandardOutPath</key>
     <string>/Users/saumyataneja/Documents/DataCenterOperationsPlatform/logs/daily_consolidation.log</string>

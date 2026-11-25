@@ -14,9 +14,19 @@ data/raw/
 data/bronze/
 data/silver/
 data/gold/
+data/metadata/device_states/
+data/metadata/checkpoints/
 
 # Logs
 *.log
 
 # Temporary files
 *.tmp
+
+# Local analytical database
+*.duckdb
+*.duckdb.wal
+
+# Python cache
+__pycache__/
+*.py[cod]

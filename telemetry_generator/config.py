@@ -12,6 +12,9 @@ RAW_DATA_DIR = DATA_DIR / "raw" / "telemetry"
 METADATA_DIR = DATA_DIR / "metadata"
 STATE_DIR = METADATA_DIR / "device_states"
 
+CHECKPOINT_DIR = METADATA_DIR / "checkpoints"
+CHECKPOINT_FILE = CHECKPOINT_DIR / "pipeline_checkpoint.json"
+
 # ==========================================
 # DATA CENTER CONFIGURATION
 # ==========================================

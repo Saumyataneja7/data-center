@@ -11,7 +11,7 @@ import pandas as pd
 import json
 
 from telemetry_generator.config import CHECKPOINT_FILE
-
+from scheduler.process_lock import exclusive_process_lock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -567,12 +567,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.date:
+    lock_path = (
+        CHECKPOINT_FILE.parent / "daily_consolidation.lock"
+    )
 
-        print(f"Target consolidation date: {args.date}")
+    with exclusive_process_lock(lock_path) as lock_acquired:
 
-        consolidate_day(args.date)
+        if not lock_acquired:
+            raise SystemExit(0)
 
-    else:
+        if args.date:
 
-        recover_pending_days()
+            print(f"Target consolidation date: {args.date}")
+
+            consolidate_day(args.date)
+
+        else:
+
+            recover_pending_days()

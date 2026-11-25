@@ -23,13 +23,13 @@ def exclusive_process_lock(lock_path: Path):
             )
         except BlockingIOError:
             print(
-                "Another pipeline instance is already running. "
+                "Another process is already running. "
                 "Skipping this execution."
             )
             yield False
             return
 
-        print("Pipeline execution lock acquired.")
+        print("Process execution lock acquired.")
 
         try:
             yield True
@@ -38,4 +38,4 @@ def exclusive_process_lock(lock_path: Path):
                 lock_file.fileno(),
                 fcntl.LOCK_UN
             )
-            print("Pipeline execution lock released.")
+            print("Process execution lock released.")

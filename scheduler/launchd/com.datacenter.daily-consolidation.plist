@@ -1,0 +1,39 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.datacenter.daily-consolidation</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/saumyataneja/Documents/DataCenterOperationsPlatform/venv/bin/python</string>
+        <string>-m</string>
+        <string>etl.daily_consolidation</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/saumyataneja/Documents/DataCenterOperationsPlatform</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>0</integer>
+        <key>Minute</key>
+        <integer>10</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/saumyataneja/Documents/DataCenterOperationsPlatform/logs/daily_consolidation.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/saumyataneja/Documents/DataCenterOperationsPlatform/logs/daily_consolidation_error.log</string>
+</dict>
+</plist>
+
+

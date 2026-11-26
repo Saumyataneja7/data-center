@@ -2,6 +2,10 @@ from pathlib import Path
 
 import duckdb
 
+from utils.logger import get_logger
+
+logger = get_logger("gold_facts", "gold_facts.log")
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -97,7 +101,7 @@ def populate_facts():
             )
         """)
 
-        print("Telemetry fact table populated.")
+        logger.info("Telemetry fact table populated.")
 
         # ---------------------------------------
         # 2. Populate fact_alerts
@@ -142,7 +146,7 @@ def populate_facts():
               )
         """)
 
-        print("Alert fact table populated.")
+        logger.info("Alert fact table populated.")
 
         # ---------------------------------------
         # 3. Validate fact table counts
@@ -166,11 +170,13 @@ def populate_facts():
             SELECT COUNT(*) FROM fact_alerts
         """).fetchone()[0]
 
-        print("\n========== GOLD FACT VALIDATION ==========")
-        print(f"Expected telemetry records: {expected_telemetry}")
-        print(f"Actual telemetry records: {actual_telemetry}")
-        print(f"Expected alert records: {expected_alerts}")
-        print(f"Actual alert records: {actual_alerts}")
+        logger.info(
+            "Gold fact validation | expected_telemetry=%s | actual_telemetry=%s | expected_alerts=%s | actual_alerts=%s",
+            expected_telemetry,
+            actual_telemetry,
+            expected_alerts,
+            actual_alerts,
+        )
 
         assert actual_telemetry == expected_telemetry
         assert actual_alerts == expected_alerts
@@ -209,17 +215,21 @@ def populate_facts():
                 OR dt.date_key IS NULL
         """).fetchone()[0]
 
-        print(f"Orphan telemetry records: {orphan_telemetry}")
-        print(f"Orphan alert records: {orphan_alerts}")
+        logger.info(
+            "Orphan records | telemetry=%s | alerts=%s",
+            orphan_telemetry,
+            orphan_alerts,
+        )
 
         assert orphan_telemetry == 0
         assert orphan_alerts == 0
 
         connection.execute("COMMIT")
 
-        print("\nGold fact population completed successfully.")
+        logger.info("Gold fact population completed successfully.")
 
     except Exception:
+        logger.exception("Gold fact population failed. Rolling back transaction.")
         connection.execute("ROLLBACK")
         raise
 

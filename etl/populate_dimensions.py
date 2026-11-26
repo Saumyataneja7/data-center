@@ -2,6 +2,10 @@ from pathlib import Path
 
 import duckdb
 
+from utils.logger import get_logger
+
+logger = get_logger("gold_dimensions", "gold_dimensions.log")
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -50,7 +54,7 @@ def populate_dimensions():
             )
         """)
 
-        print("Data center dimension populated.")
+        logger.info("Data center dimension populated.")
 
         # ---------------------------------------
         # 2. Populate dim_server
@@ -89,7 +93,7 @@ def populate_dimensions():
             )
         """)
 
-        print("Server dimension populated.")
+        logger.info("Server dimension populated.")
 
         # ---------------------------------------
         # 3. Populate dim_date
@@ -122,7 +126,7 @@ def populate_dimensions():
             )
         """)
 
-        print("Date dimension populated.")
+        logger.info("Date dimension populated.")
 
         # ---------------------------------------
         # 4. Validate dimensions
@@ -135,10 +139,12 @@ def populate_dimensions():
                 (SELECT COUNT(*) FROM dim_date)
         """).fetchone()
 
-        print("\nDimension counts:")
-        print(f"Data centers: {counts[0]}")
-        print(f"Servers: {counts[1]}")
-        print(f"Dates: {counts[2]}")
+        logger.info(
+            "Dimension counts | data_centers=%s | servers=%s | dates=%s",
+            counts[0],
+            counts[1],
+            counts[2],
+        )
 
         # Check server-to-datacenter mapping.
         orphan_servers = connection.execute("""
@@ -149,13 +155,17 @@ def populate_dimensions():
             WHERE d.datacenter_key IS NULL
         """).fetchone()[0]
 
-        print(f"Servers without a data center: {orphan_servers}")
+        logger.info("Servers without a data center | count=%s", orphan_servers)
 
         assert counts[0] == 5
         assert counts[1] == 500
         assert orphan_servers == 0
 
-        print("\nDimension population completed successfully.")
+        logger.info("Dimension population completed successfully.")
+
+    except Exception:
+        logger.exception("Gold dimension population failed.")
+        raise
 
     finally:
         connection.close()

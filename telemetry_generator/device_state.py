@@ -3,7 +3,13 @@ import json
 import numpy as np
 
 from telemetry_generator.config import STATE_DIR, RANDOM_SEED
+from utils.logger import get_logger
 
+
+logger = get_logger(
+    "device_state",
+    "device_state.log"
+)
 
 class DeviceStateManager:
     """
@@ -53,17 +59,23 @@ class DeviceStateManager:
 
         temporary_file.replace(self.state_file)
 
-        print(f"Saved {len(self.states)} server states.")
+        logger.info(
+            "Saved %d server states.",
+            len(self.states)
+        )
 
     def load_states(self):
         if not self.state_file.exists():
-            print("No previous states found.")
+            logger.warning("No previous server states found.")
             return False
 
         with open(self.state_file, "r") as file:
             self.states = json.load(file)
 
-        print(f"Loaded {len(self.states)} server states.")
+        logger.info(
+            "Loaded %d server states.",
+            len(self.states)
+        )
 
         return True
 
@@ -76,6 +88,11 @@ class DeviceStateManager:
             raise ValueError("Invalid state snapshot.")
 
         self.states = states
+
+        logger.info(
+            "Restored %d server states from recovery snapshot.",
+            len(self.states)
+        )
 
     def get_state(self, server_id):
         return self.states.get(server_id)

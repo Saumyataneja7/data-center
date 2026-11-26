@@ -2,6 +2,13 @@ from contextlib import contextmanager
 from pathlib import Path
 import fcntl
 
+from utils.logger import get_logger
+
+
+logger = get_logger(
+    "process_lock",
+    "process_lock.log"
+)
 
 @contextmanager
 def exclusive_process_lock(lock_path: Path):
@@ -22,14 +29,18 @@ def exclusive_process_lock(lock_path: Path):
                 fcntl.LOCK_EX | fcntl.LOCK_NB
             )
         except BlockingIOError:
-            print(
-                "Another process is already running. "
-                "Skipping this execution."
+            logger.warning(
+                "Lock already held by another process. "
+                "Skipping execution | lock=%s",
+                lock_path
             )
             yield False
             return
 
-        print("Process execution lock acquired.")
+        logger.info(
+            "Process execution lock acquired | lock=%s",
+            lock_path
+        )
 
         try:
             yield True
@@ -38,4 +49,7 @@ def exclusive_process_lock(lock_path: Path):
                 lock_file.fileno(),
                 fcntl.LOCK_UN
             )
-            print("Process execution lock released.")
+            logger.info(
+                "Process execution lock released | lock=%s",
+                lock_path
+            )

@@ -21,7 +21,13 @@ from telemetry_generator.anomaly_injector import AnomalyInjector
 
 from scheduler.interval_manager import get_pending_intervals
 from scheduler.process_lock import exclusive_process_lock
+from utils.logger import get_logger
 
+
+logger = get_logger(
+    "telemetry_pipeline",
+    "telemetry_pipeline.log"
+)
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -37,7 +43,9 @@ class PipelineRunner:
         states_loaded = self.state_manager.load_states()
 
         if not states_loaded:
-            print("No previous server states found. Initializing all servers.")
+            logger.info(
+                "No previous server states found. Initializing all servers."
+            )
             self.state_manager.initialize_all(self.servers)
 
         CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
@@ -107,7 +115,10 @@ class PipelineRunner:
 
         temporary_file.replace(CHECKPOINT_FILE)
 
-        print(f"Checkpoint updated: {timestamp.isoformat()}")
+        logger.info(
+            "Checkpoint updated: %s",
+            timestamp.isoformat()
+        )
 
     # ==========================================
     # FILE PATHS
@@ -227,17 +238,17 @@ class PipelineRunner:
 
         temporary_file.replace(pending_file)
 
-        print("Pending transaction saved.")
+        logger.info("Pending transaction saved.")
 
     def recover_pending_transaction(self):
 
         pending_file = self.pending_transaction_file
 
         if not pending_file.exists():
-            print("No pending transaction to recover.")
+            logger.debug("No pending transaction to recover.")
             return False
 
-        print("\n========== TRANSACTION RECOVERY ==========")
+        logger.info("Starting transaction recovery.")
 
         with open(pending_file, "r") as file:
             transaction = json.load(file)
@@ -259,9 +270,10 @@ class PipelineRunner:
             last_successful is not None
             and timestamp <= last_successful
         ):
-            print(
-                "Transaction is already committed. "
-                "Removing leftover pending file."
+            logger.warning(
+                "Transaction %s is already committed. "
+                "Removing leftover pending file.",
+                timestamp.isoformat()
             )
 
             pending_file.unlink()
@@ -294,7 +306,10 @@ class PipelineRunner:
                 "Pending transaction record count does not match Parquet."
             )
 
-        print(f"Recovering interval: {timestamp.isoformat()}")
+        logger.info(
+            "Recovering interval: %s",
+            timestamp.isoformat()
+        )
 
         # Restore the state snapshot associated with the Parquet batch.
         self.state_manager.restore_states(states)
@@ -310,7 +325,9 @@ class PipelineRunner:
 
         pending_file.unlink()
 
-        print("Pending transaction successfully recovered.")
+        logger.info(
+            "Pending transaction successfully recovered."
+        )
 
         return True
 
@@ -349,9 +366,11 @@ class PipelineRunner:
                 f"Interval {timestamp} is already committed."
             )
 
-        print("\nStarting Data Center Telemetry Pipeline")
-        print(f"Timestamp: {timestamp.isoformat()}")
-        print(f"Servers: {len(self.servers)}")
+        logger.info(
+            "Starting telemetry pipeline | timestamp=%s | servers=%d",
+            timestamp.isoformat(),
+            len(self.servers)
+        )
 
         # Keep a copy so ordinary Python exceptions can roll back
         # in-memory changes if the transaction has not been committed.
@@ -403,15 +422,23 @@ class PipelineRunner:
             # 7. Remove recovery record after successful commit.
             self.pending_transaction_file.unlink()
 
-            print("\nPipeline completed successfully.")
-            print(f"Records generated: {len(records)}")
-            print(f"Anomalies injected: {anomaly_count}")
-            print(f"Parquet file: {output_path}")
-            print(f"Checkpoint: {CHECKPOINT_FILE}")
+            logger.info(
+                "Pipeline completed successfully | records=%d | anomalies=%d",
+                len(records),
+                anomaly_count
+            )
+
+            logger.info("Parquet output: %s", output_path)
+            logger.info("Checkpoint: %s", CHECKPOINT_FILE)
 
             return output_path
 
         except Exception:
+
+            logger.exception(
+                "Telemetry pipeline failed for interval %s",
+                timestamp.isoformat()
+            )
 
             # If a pending transaction exists, leave it intact:
             # the next process can recover it.
@@ -443,27 +470,34 @@ class PipelineRunner:
         )
 
         if not pending_intervals:
-            print("\nNo pending telemetry intervals.")
+            logger.info("No pending telemetry intervals.")
             return 0
 
-        print("\n========== PIPELINE RECOVERY ==========")
-        print(f"Last successful interval: {last_successful}")
-        print(f"Current time: {current_timestamp}")
-        print(f"Pending intervals: {len(pending_intervals)}")
+        logger.info(
+            "Starting pipeline recovery | last_successful=%s | "
+            "current_time=%s | pending_intervals=%d",
+            last_successful,
+            current_timestamp,
+            len(pending_intervals)
+        )
 
         for index, timestamp in enumerate(
             pending_intervals,
             start=1
         ):
 
-            print(
-                f"\nProcessing interval {index}/"
-                f"{len(pending_intervals)}"
+            logger.info(
+                "Processing interval %d/%d | timestamp=%s",
+                index,
+                len(pending_intervals),
+                timestamp.isoformat()
             )
 
             self.run_once(timestamp)
 
-        print("\nAll pending intervals processed successfully.")
+        logger.info(
+            "All pending telemetry intervals processed successfully."
+        )
 
         return len(pending_intervals)
 

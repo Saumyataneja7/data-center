@@ -101,8 +101,3 @@ TELEMETRY_FORMAT = "parquet"
 assert TOTAL_SERVERS == 500
 assert RECORDS_PER_SERVER_PER_DAY == 96
 assert EXPECTED_DAILY_RECORDS == 48_000
-
-print("Simulation configuration validated!")
-print("Total servers:", TOTAL_SERVERS)
-print("Records per server per day:", RECORDS_PER_SERVER_PER_DAY)
-print("Expected daily records:", EXPECTED_DAILY_RECORDS)

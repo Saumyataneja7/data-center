@@ -13,6 +13,14 @@ import json
 from telemetry_generator.config import CHECKPOINT_FILE
 from scheduler.process_lock import exclusive_process_lock
 
+from utils.logger import get_logger
+
+
+logger = get_logger(
+    "daily_consolidation",
+    "daily_consolidation_structured.log"
+)
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw" / "telemetry"
@@ -66,7 +74,7 @@ def get_last_completed_date(checkpoint_file=None):
     checkpoint_file = Path(checkpoint_file)
 
     if not checkpoint_file.exists():
-        print("No telemetry checkpoint found.")
+        logger.warning("No telemetry checkpoint found.")
         return None
 
     with open(checkpoint_file, "r") as file:
@@ -208,7 +216,7 @@ def validate_daily_timestamps(batch_files, target_date: date) -> None:
             f"Unexpected timestamps: {unexpected}."
         )
 
-    print("All 96 expected IST timestamps are present.")
+    logger.info("All 96 expected IST timestamps are present.")
 
 
 def validate_daily_output(output_file: Path, target_date: date) -> None:
@@ -289,7 +297,10 @@ def validate_daily_output(output_file: Path, target_date: date) -> None:
             "does not contain the expected 96 timestamps."
         )
 
-    print(f"Existing daily output validated: {target_date}")
+    logger.info(
+        "Existing daily output validated: %s",
+        target_date
+    )
 
 
 def consolidate_day(target_date: date):
@@ -322,12 +333,12 @@ def consolidate_day(target_date: date):
             f"Unexpected batch files found: {sorted(unexpected)}"
         )
 
-    print(f"Found {len(batch_files)} batches for {target_date}.")
+    logger.info("Found %d batches for %s.", len(batch_files), target_date)
 
     validate_batches(batch_files)
     validate_daily_timestamps(batch_files, target_date)
 
-    print("All individual batches passed validation.")
+    logger.info("All individual batches passed validation for %s.", target_date)
 
     DAILY_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -348,7 +359,7 @@ def consolidate_day(target_date: date):
     # Remove an orphaned temporary output from a previous
     # interrupted consolidation attempt.
     if temporary_file.exists():
-        print("Removing incomplete temporary consolidation file.")
+        logger.warning("Removing incomplete temporary consolidation file: %s", temporary_file)
         temporary_file.unlink()
 
     connection = duckdb.connect(database=":memory:")
@@ -399,18 +410,28 @@ def consolidate_day(target_date: date):
 
         temporary_file.replace(output_file)
 
-        print("\nDaily consolidation successful.")
-        print(f"Date: {target_date}")
-        print(f"Total records: {total_records}")
-        print(f"Unique readings: {unique_readings}")
-        print(f"Unique timestamps: {unique_timestamps}")
-        print(f"Output: {output_file}")
+        logger.info(
+            "Daily consolidation successful | date=%s | "
+            "records=%d | unique_readings=%d | "
+            "timestamps=%d | output=%s",
+            target_date,
+            total_records,
+            unique_readings,
+            unique_timestamps,
+            output_file
+        )
 
         return output_file
 
     except Exception:
+        logger.exception(
+            "Daily consolidation failed for date=%s",
+            target_date
+        )
+
         if temporary_file.exists():
             temporary_file.unlink()
+
         raise
 
     finally:
@@ -428,22 +449,25 @@ def recover_pending_days():
     Stop if a date folder is missing or invalid.
     """
 
-    print("\n========== DAILY CONSOLIDATION RECOVERY ==========")
+    logger.info("Starting daily consolidation recovery.")
 
     last_completed_date = get_last_completed_date()
 
     if last_completed_date is None:
-        print("No completed telemetry dates available.")
+        logger.warning("No completed telemetry dates available.")
 
         return {
             "consolidated": [],
             "skipped": []
         }
 
-    print(f"Latest completed date: {last_completed_date}")
+    logger.info(
+        "Latest completed date: %s",
+        last_completed_date
+    )
 
     if not RAW_DATA_DIR.exists():
-        print("Raw telemetry directory does not exist.")
+        logger.warning("Raw telemetry directory does not exist.")
 
         return {
             "consolidated": [],
@@ -470,7 +494,7 @@ def recover_pending_days():
         raw_dates.append(folder_date)
 
     if not raw_dates:
-        print("No raw telemetry date folders found.")
+        logger.warning("No raw telemetry date folders found.")
 
         return {
             "consolidated": [],
@@ -480,14 +504,17 @@ def recover_pending_days():
     first_date = min(raw_dates)
 
     if first_date > last_completed_date:
-        print("No fully completed days available for consolidation.")
+        logger.info("No fully completed days available for consolidation.")
 
         return {
             "consolidated": [],
             "skipped": []
         }
 
-    print(f"First available date: {first_date}")
+    logger.info(
+        "First available date: %s",
+        first_date
+    )
 
     consolidated = []
     skipped = []
@@ -505,7 +532,7 @@ def recover_pending_days():
             f"telemetry_{target_date}.parquet"
         )
 
-        print(f"\nChecking date: {target_date}")
+        logger.info("Checking date: %s", target_date)
 
         # Detect an entirely missing raw date folder.
         if not date_folder.exists():
@@ -525,11 +552,11 @@ def recover_pending_days():
 
             skipped.append(target_date)
 
-            print("Existing daily output validated. Skipping.")
+            logger.info("Existing daily output validated. Skipping.")
 
         else:
 
-            print("Daily output missing. Starting consolidation.")
+            logger.info("Daily output missing. Starting consolidation.")
 
             consolidate_day(target_date)
 
@@ -542,9 +569,11 @@ def recover_pending_days():
 
         target_date += timedelta(days=1)
 
-    print("\n========== RECOVERY SUMMARY ==========")
-    print(f"Newly consolidated days: {len(consolidated)}")
-    print(f"Previously completed days skipped: {len(skipped)}")
+    logger.info(
+        "Recovery summary | newly_consolidated=%d | skipped=%d",
+        len(consolidated),
+        len(skipped)
+    )
 
     return {
         "consolidated": consolidated,
@@ -578,7 +607,10 @@ if __name__ == "__main__":
 
         if args.date:
 
-            print(f"Target consolidation date: {args.date}")
+            logger.info(
+                "Target consolidation date: %s",
+                args.date
+            )
 
             consolidate_day(args.date)
 

@@ -2,6 +2,10 @@ from pathlib import Path
 
 import duckdb
 
+from utils.logger import get_logger
+
+logger = get_logger("silver_transform", "silver_transform.log")
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -123,16 +127,24 @@ def transform_batch(connection, input_file, output_file):
 
     report, errors = validate_batch(connection, input_file)
 
-    print(f"\nValidating: {input_file.name}")
-    print(f"Records: {report['total_records']}")
-    print(f"Unique servers: {report['unique_servers']}")
+    logger.info(
+        "Validating raw batch | file=%s | records=%s | unique_servers=%s",
+        input_file.name,
+        report["total_records"],
+        report["unique_servers"],
+    )
 
     if errors:
+        logger.error(
+            "Batch validation failed | file=%s | errors=%s",
+            input_file.name,
+            "; ".join(errors),
+        )
         raise ValueError(
             "Silver transformation stopped:\n- " + "\n- ".join(errors)
         )
 
-    print("Validation passed.")
+    logger.info("Batch validation passed | file=%s", input_file.name)
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -190,7 +202,7 @@ def transform_batch(connection, input_file, output_file):
     connection.execute(transform_query)
     temporary_file.replace(output_file)
 
-    print(f"Silver file created: {output_file}")
+    logger.info("Silver file created | path=%s", output_file)
 
     return report
 
@@ -199,7 +211,7 @@ def main():
     raw_files = sorted(RAW_DATA_DIR.rglob("*.parquet"))
 
     if not raw_files:
-        print("No raw Parquet files found.")
+        logger.warning("No raw Parquet files found | directory=%s", RAW_DATA_DIR)
         return
 
     connection = duckdb.connect(database=":memory:")
@@ -212,24 +224,28 @@ def main():
             output_file = SILVER_DATA_DIR / relative_path
 
             if output_file.exists():
-                print(f"\nSkipping existing Silver batch: {output_file.name}")
+                logger.info(
+                    "Skipping existing Silver batch | file=%s",
+                    output_file.name,
+                )
                 continue
 
-            transform_batch(
-                connection,
-                input_file,
-                output_file
-            )
-
+            transform_batch(connection, input_file, output_file)
             processed += 1
+
+    except Exception:
+        logger.exception("Silver transformation failed.")
+        raise
 
     finally:
         connection.close()
 
-    print("\n========== SILVER TRANSFORMATION SUMMARY ==========")
-    print(f"Raw batches discovered: {len(raw_files)}")
-    print(f"New batches transformed: {processed}")
-    print(f"Silver directory: {SILVER_DATA_DIR}")
+    logger.info(
+        "Silver transformation completed | discovered=%s | processed=%s | directory=%s",
+        len(raw_files),
+        processed,
+        SILVER_DATA_DIR,
+    )
 
 
 if __name__ == "__main__":
